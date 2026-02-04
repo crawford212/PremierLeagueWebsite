@@ -1,5 +1,4 @@
 const teamPlayerCache = {};
-const headers = { "x-apisports-key": process.env.API_KEY };
 
 async function fetchAllPlayers(teamId) {
     let allPlayers = [];
@@ -7,10 +6,7 @@ async function fetchAllPlayers(teamId) {
     let totalPages = 1;
 
     while (page <= totalPages) {
-        const res = await fetch(
-            `https://v3.football.api-sports.io/players?league=39&season=2024&team=${teamId}&page=${page}`,
-            { headers }
-        );
+        const res = await fetch(`/api/players?team=${teamId}&page=${page}`);
         const data = await res.json();
 
         totalPages = data.paging.total;
@@ -23,10 +19,7 @@ async function fetchAllPlayers(teamId) {
 
 async function loadTable() { 
     try {
-        const response = await fetch(
-            "https://v3.football.api-sports.io/standings?league=39&season=2024",
-            { headers }
-        );
+        const response = await fetch("/api/standings");
         const data = await response.json();
         
  if (!data.response || !data.response.length || !data.response[0]?.league?.standings) {
@@ -152,4 +145,5 @@ const topAssisters = [...players]
 }
 
 loadTable();
+
 
