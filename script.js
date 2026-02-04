@@ -79,48 +79,54 @@ function attachClicks() {
 
 async function loadTeamStatsMini(teamId) {
     try {
-       let rawPlayers;
-if (teamPlayerCache[teamId]) {
-    rawPlayers = teamPlayerCache[teamId];
-                             } 
-else {
-    rawPlayers = await fetchAllPlayers(teamId);
-    teamPlayerCache[teamId] = rawPlayers;
-}
+        let rawPlayers;
+        if (teamPlayerCache[teamId]) {
+            rawPlayers = teamPlayerCache[teamId];
+        } else {
+            rawPlayers = await fetchAllPlayers(teamId);
+            teamPlayerCache[teamId] = rawPlayers;
+        }
 
+        if (!rawPlayers.length) {
+            console.warn("No players data for team:", teamId);
+            return null;
+        }
 
-if (!rawPlayers.length) {
-    console.warn("No players data for team:", teamId);
-    return null;
-}
+        // Aggregate stats per player
+        const aggregatedPlayers = {};
+        rawPlayers.forEach(p => {
+            const stats = p.statistics?.filter(s => s.league?.id === 39) || [];
+            const totalGoals = stats.reduce((sum, s) => sum + (s.goals?.total || 0), 0);
+            const totalAssists = stats.reduce((sum, s) => sum + (s.goals?.assists || 0), 0);
+            const totalMinutes = stats.reduce((sum, s) => sum + (s.games?.minutes || 0), 0);
 
+            if (totalMinutes > 0) {
+                if (!aggregatedPlayers[p.player.id]) {
+                    aggregatedPlayers[p.player.id] = {
+                        name: p.player.name,
+                        goals: totalGoals,
+                        assists: totalAssists,
+                        minutes: totalMinutes
+                    };
+                } else {
+                    aggregatedPlayers[p.player.id].goals += totalGoals;
+                    aggregatedPlayers[p.player.id].assists += totalAssists;
+                    aggregatedPlayers[p.player.id].minutes += totalMinutes;
+                }
+            }
+        });
 
-const players = rawPlayers
-    .map(p => {
-        const premStats = p.statistics?.filter(s => s.league?.id === 39) || [];
-        const totalGoals = premStats.reduce((sum, s) => sum + (s.goals?.total || 0), 0);
-        const totalAssists = premStats.reduce((sum, s) => sum + (s.goals?.assists || 0), 0);
-        const totalMinutes = premStats.reduce((sum, s) => sum + (s.games?.minutes || 0), 0);
+        const players = Object.values(aggregatedPlayers);
 
-        return {
-            name: p.player.name,
-            goals: totalGoals,
-            assists: totalAssists,
-            minutes: totalMinutes
-        };
-    })
-    .filter(p => p.minutes > 0);
+        const topScorers = players
+            .filter(p => p.goals > 0)
+            .sort((a, b) => b.goals - a.goals)
+            .slice(0, 5);
 
-
-const topScorers = [...players]
-    .filter(p => p.goals > 0)
-    .sort((a, b) => b.goals - a.goals)
-    .slice(0, 5);
-
-const topAssisters = [...players]
-    .filter(p => p.assists > 0)
-    .sort((a, b) => b.assists - a.assists)
-    .slice(0, 5);
+        const topAssisters = players
+            .filter(p => p.assists > 0)
+            .sort((a, b) => b.assists - a.assists)
+            .slice(0, 5);
 
         const miniRow = document.createElement("tr");
         miniRow.classList.add("mini-table-row");
@@ -128,7 +134,7 @@ const topAssisters = [...players]
         const miniCell = document.createElement("td");
         miniCell.colSpan = 10;
 
-       miniCell.innerHTML = `
+        miniCell.innerHTML = `
 <div style="display:flex; gap:20px;">
     <table class="mini-table">
         <tr><th colspan="2">Top 5 Scorers</th></tr>
@@ -141,6 +147,7 @@ const topAssisters = [...players]
     </table>
 </div>
 `;
+
         miniRow.appendChild(miniCell);
         return miniRow;
     } catch (err) {
@@ -149,7 +156,9 @@ const topAssisters = [...players]
     }
 }
 
+
 loadTable();
+
 
 
 
