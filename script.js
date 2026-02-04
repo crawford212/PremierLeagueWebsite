@@ -6,30 +6,44 @@ async function fetchAllPlayers(teamId) {
     let totalPages = 1;
 
     while (page <= totalPages) {
-        const res = await fetch(`/api/players?team=${teamId}&page=${page}`);
-        const data = await res.json();
+        try {
+            const res = await fetch(`/api/players?team=${teamId}&page=${page}`);
+            const data = await res.json();
 
-        totalPages = data.paging.total;
-        allPlayers.push(...data.response);
-        page++;
+            if (!data.response) {
+                console.warn(`No response on page ${page} for team ${teamId}`, data);
+                break;
+            }
+
+            allPlayers.push(...data.response);
+
+            // Ensure totalPages is read correctly
+            totalPages = data.paging?.total || 1;
+
+            console.log(`Fetched page ${page}/${totalPages} for team ${teamId}, players so far: ${allPlayers.length}`);
+            page++;
+        } catch (err) {
+            console.error(`Error fetching players for team ${teamId} on page ${page}`, err);
+            break;
+        }
     }
 
     return allPlayers;
 }
 
-async function loadTable() { 
+async function loadTable() {
     try {
         const response = await fetch("/api/standings");
         const data = await response.json();
-        
- if (!data.response || !data.response.length || !data.response[0]?.league?.standings) {
-    console.error("Invalid API response", data);
-    return;
-}
+
+        if (!data.response || !data.response.length || !data.response[0]?.league?.standings) {
+            console.error("Invalid API response", data);
+            return;
+        }
 
         const standings = data.response[0].league.standings[0];
         const tbody = document.querySelector("#leagueTable tbody");
-        tbody.innerHTML = ""; // Clear table first
+        tbody.innerHTML = "";
 
         standings.forEach(team => {
             const row = document.createElement("tr");
@@ -76,7 +90,6 @@ function attachClicks() {
     });
 }
 
-
 async function loadTeamStatsMini(teamId) {
     try {
         let rawPlayers;
@@ -87,40 +100,54 @@ async function loadTeamStatsMini(teamId) {
             teamPlayerCache[teamId] = rawPlayers;
         }
 
-        if (!rawPlayers.length) return null;
+        if (!rawPlayers.length) {
+            console.warn("No players data for team:", teamId);
+            return null;
+        }
 
+        // Aggregate stats per player
         const aggregatedPlayers = {};
 
         rawPlayers.forEach(p => {
             const stats = p.statistics || [];
             let totalGoals = 0;
             let totalAssists = 0;
+            let totalMinutes = 0;
 
             stats.forEach(s => {
-                totalGoals += s.goals?.total || 0;
-                totalAssists += s.goals?.assists || 0;
+                if (s.league?.id === 39 && s.league?.season === 2024) {
+                    totalGoals += s.goals?.total || 0;
+                    totalAssists += s.goals?.assists || 0;
+                    totalMinutes += parseInt(s.games?.minutes || 0);
+                }
             });
 
             if (!aggregatedPlayers[p.player.id]) {
                 aggregatedPlayers[p.player.id] = {
                     name: p.player.name,
                     goals: totalGoals,
-                    assists: totalAssists
+                    assists: totalAssists,
+                    minutes: totalMinutes
                 };
             } else {
                 aggregatedPlayers[p.player.id].goals += totalGoals;
                 aggregatedPlayers[p.player.id].assists += totalAssists;
+                aggregatedPlayers[p.player.id].minutes += totalMinutes;
             }
         });
-        console.log(teamId, aggregatedPlayers);
-        const players = Object.values(aggregatedPlayers);
 
-        const topScorers = players
+        // Only include players who played at least 1 minute
+        const players = Object.values(aggregatedPlayers).filter(p => p.minutes > 0);
+
+        // Debug log before sorting
+        console.log(`Team ${teamId} players stats:`, players);
+
+        const topScorers = [...players]
             .filter(p => p.goals > 0)
             .sort((a, b) => b.goals - a.goals)
             .slice(0, 5);
 
-        const topAssisters = players
+        const topAssisters = [...players]
             .filter(p => p.assists > 0)
             .sort((a, b) => b.assists - a.assists)
             .slice(0, 5);
@@ -154,12 +181,4 @@ async function loadTeamStatsMini(teamId) {
     }
 }
 
-
-
 loadTable();
-
-
-
-
-
-
