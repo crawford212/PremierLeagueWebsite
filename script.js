@@ -92,39 +92,45 @@ async function loadTeamStatsMini(teamId) {
             return null;
         }
 
-        // Aggregate stats per player
         const aggregatedPlayers = {};
-        rawPlayers.forEach(p => {
-            const stats = p.statistics?.filter(s => s.league?.id === 39) || [];
-            const totalGoals = stats.reduce((sum, s) => sum + (s.goals?.total || 0), 0);
-            const totalAssists = stats.reduce((sum, s) => sum + (s.goals?.assists || 0), 0);
-            const totalMinutes = stats.reduce((sum, s) => sum + (s.games?.minutes || 0), 0);
 
-            if (totalMinutes > 0) {
-                if (!aggregatedPlayers[p.player.id]) {
-                    aggregatedPlayers[p.player.id] = {
-                        name: p.player.name,
-                        goals: totalGoals,
-                        assists: totalAssists,
-                        minutes: totalMinutes
-                    };
-                } else {
-                    aggregatedPlayers[p.player.id].goals += totalGoals;
-                    aggregatedPlayers[p.player.id].assists += totalAssists;
-                    aggregatedPlayers[p.player.id].minutes += totalMinutes;
+        rawPlayers.forEach(p => {
+            const stats = p.statistics || []; // Take all statistics objects, not just league 39
+            let totalGoals = 0;
+            let totalAssists = 0;
+            let totalMinutes = 0;
+
+            stats.forEach(s => {
+                // Only count if league exists and season is 2024
+                if (s.league?.id && s.league?.season === 2024) {
+                    totalGoals += s.goals?.total || 0;
+                    totalAssists += s.goals?.assists || 0;
+                    totalMinutes += parseInt(s.games?.minutes || 0);
                 }
+            });
+
+            if (!aggregatedPlayers[p.player.id]) {
+                aggregatedPlayers[p.player.id] = {
+                    name: p.player.name,
+                    goals: totalGoals,
+                    assists: totalAssists,
+                    minutes: totalMinutes
+                };
+            } else {
+                aggregatedPlayers[p.player.id].goals += totalGoals;
+                aggregatedPlayers[p.player.id].assists += totalAssists;
+                aggregatedPlayers[p.player.id].minutes += totalMinutes;
             }
         });
 
-        const players = Object.values(aggregatedPlayers);
+        // Only include players who played at least 1 minute
+        const players = Object.values(aggregatedPlayers).filter(p => p.minutes > 0);
 
         const topScorers = players
-            .filter(p => p.goals > 0)
             .sort((a, b) => b.goals - a.goals)
             .slice(0, 5);
 
         const topAssisters = players
-            .filter(p => p.assists > 0)
             .sort((a, b) => b.assists - a.assists)
             .slice(0, 5);
 
@@ -150,6 +156,7 @@ async function loadTeamStatsMini(teamId) {
 
         miniRow.appendChild(miniCell);
         return miniRow;
+
     } catch (err) {
         console.error("Error fetching team stats for team", teamId, err);
         return null;
@@ -158,6 +165,7 @@ async function loadTeamStatsMini(teamId) {
 
 
 loadTable();
+
 
 
 
