@@ -1,0 +1,71 @@
+body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: center;
+}
+
+    td.team {
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+        td.team:hover {
+            text-decoration: underline;
+        }
+
+#overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+}
+
+#teamModal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 300px;
+}
+
+.hidden {
+    display: none;
+}
+.mini-table {
+    border-collapse: collapse;
+    font-size: 13px;
+    min-width: 220px;
+    align-self: flex-start;
+}
+
+.mini-table th {
+    background: #eee;
+    text-align: center;
+    padding: 4px;
+    font-weight: bold;
+}
+
+.mini-table td {
+    padding: 4px 6px;
+    white-space: nowrap;
+}
+
+.mini-table td:last-child {
+    text-align: center;
+    width: 36px;
+}
+
+
+
