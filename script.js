@@ -10,17 +10,12 @@ async function fetchAllPlayers(teamId) {
             const res = await fetch(`/api/players?team=${teamId}&page=${page}`);
             const data = await res.json();
 
-            if (!data.response) {
-                console.warn(`No response on page ${page} for team ${teamId}`, data);
-                break;
-            }
+            if (!data.response) break;
 
             allPlayers.push(...data.response);
-
-            // Ensure totalPages is read correctly
             totalPages = data.paging?.total || 1;
 
-            console.log(`Fetched page ${page}/${totalPages} for team ${teamId}, players so far: ${allPlayers.length}`);
+            console.log(`Fetched page ${page}/${totalPages} for team ${teamId}, players so far:`, allPlayers.map(p => p.player.name));
             page++;
         } catch (err) {
             console.error(`Error fetching players for team ${teamId} on page ${page}`, err);
@@ -36,7 +31,7 @@ async function loadTable() {
         const response = await fetch("/api/standings");
         const data = await response.json();
 
-        if (!data.response || !data.response.length || !data.response[0]?.league?.standings) {
+        if (!data.response?.length || !data.response[0]?.league?.standings) {
             console.error("Invalid API response", data);
             return;
         }
@@ -84,9 +79,7 @@ function attachClicks() {
         }
 
         const miniRow = await loadTeamStatsMini(teamId);
-        if (miniRow) {
-            row.parentNode.insertBefore(miniRow, row.nextElementSibling);
-        }
+        if (miniRow) row.parentNode.insertBefore(miniRow, row.nextElementSibling);
     });
 }
 
@@ -100,47 +93,38 @@ async function loadTeamStatsMini(teamId) {
             teamPlayerCache[teamId] = rawPlayers;
         }
 
-        if (!rawPlayers.length) {
-            console.warn("No players data for team:", teamId);
-            return null;
-        }
+        if (!rawPlayers.length) return null;
 
-        // Aggregate stats per player
+        console.log("Raw players fetched:", rawPlayers.map(p => ({
+            name: p.player.name,
+            statistics: p.statistics
+        })));
+
+        // Aggregate stats
         const aggregatedPlayers = {};
-
         rawPlayers.forEach(p => {
             const stats = p.statistics || [];
-            let totalGoals = 0;
-            let totalAssists = 0;
-            let totalMinutes = 0;
-
             stats.forEach(s => {
+                console.log(`Player ${p.player.name} stat object:`, s);
                 if (s.league?.id === 39 && s.league?.season === 2024) {
-                    totalGoals += s.goals?.total || 0;
-                    totalAssists += s.goals?.assists || 0;
-                    totalMinutes += parseInt(s.games?.minutes || 0);
+                    if (!aggregatedPlayers[p.player.id]) {
+                        aggregatedPlayers[p.player.id] = {
+                            name: p.player.name,
+                            goals: s.goals?.total || 0,
+                            assists: s.goals?.assists || 0,
+                            minutes: parseInt(s.games?.minutes || 0)
+                        };
+                    } else {
+                        aggregatedPlayers[p.player.id].goals += s.goals?.total || 0;
+                        aggregatedPlayers[p.player.id].assists += s.goals?.assists || 0;
+                        aggregatedPlayers[p.player.id].minutes += parseInt(s.games?.minutes || 0);
+                    }
                 }
             });
-
-            if (!aggregatedPlayers[p.player.id]) {
-                aggregatedPlayers[p.player.id] = {
-                    name: p.player.name,
-                    goals: totalGoals,
-                    assists: totalAssists,
-                    minutes: totalMinutes
-                };
-            } else {
-                aggregatedPlayers[p.player.id].goals += totalGoals;
-                aggregatedPlayers[p.player.id].assists += totalAssists;
-                aggregatedPlayers[p.player.id].minutes += totalMinutes;
-            }
         });
 
-        // Only include players who played at least 1 minute
         const players = Object.values(aggregatedPlayers).filter(p => p.minutes > 0);
-
-        // Debug log before sorting
-        console.log(`Team ${teamId} players stats:`, players);
+        console.log(`Aggregated players for team ${teamId}:`, players);
 
         const topScorers = [...players]
             .filter(p => p.goals > 0)
