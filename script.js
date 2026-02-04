@@ -1,5 +1,5 @@
 const teamPlayerCache = {};
-const headers = { "x-apisports-key": API_KEY };
+const headers = { "x-apisports-key": process.env.API_KEY };
 
 async function fetchAllPlayers(teamId) {
     let allPlayers = [];
@@ -152,3 +152,4 @@ const topAssisters = [...players]
 }
 
 loadTable();
+
