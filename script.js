@@ -87,50 +87,41 @@ async function loadTeamStatsMini(teamId) {
             teamPlayerCache[teamId] = rawPlayers;
         }
 
-        if (!rawPlayers.length) {
-            console.warn("No players data for team:", teamId);
-            return null;
-        }
+        if (!rawPlayers.length) return null;
 
         const aggregatedPlayers = {};
 
         rawPlayers.forEach(p => {
-            const stats = p.statistics || []; // Take all statistics objects, not just league 39
+            const stats = p.statistics || [];
             let totalGoals = 0;
             let totalAssists = 0;
-            let totalMinutes = 0;
 
             stats.forEach(s => {
-                // Only count if league exists and season is 2024
-                if (s.league?.id && s.league?.season === 2024) {
-                    totalGoals += s.goals?.total || 0;
-                    totalAssists += s.goals?.assists || 0;
-                    totalMinutes += parseInt(s.games?.minutes || 0);
-                }
+                totalGoals += s.goals?.total || 0;
+                totalAssists += s.goals?.assists || 0;
             });
 
             if (!aggregatedPlayers[p.player.id]) {
                 aggregatedPlayers[p.player.id] = {
                     name: p.player.name,
                     goals: totalGoals,
-                    assists: totalAssists,
-                    minutes: totalMinutes
+                    assists: totalAssists
                 };
             } else {
                 aggregatedPlayers[p.player.id].goals += totalGoals;
                 aggregatedPlayers[p.player.id].assists += totalAssists;
-                aggregatedPlayers[p.player.id].minutes += totalMinutes;
             }
         });
-
-        // Only include players who played at least 1 minute
-        const players = Object.values(aggregatedPlayers).filter(p => p.minutes > 0);
+        console.log(teamId, aggregatedPlayers);
+        const players = Object.values(aggregatedPlayers);
 
         const topScorers = players
+            .filter(p => p.goals > 0)
             .sort((a, b) => b.goals - a.goals)
             .slice(0, 5);
 
         const topAssisters = players
+            .filter(p => p.assists > 0)
             .sort((a, b) => b.assists - a.assists)
             .slice(0, 5);
 
@@ -164,7 +155,9 @@ async function loadTeamStatsMini(teamId) {
 }
 
 
+
 loadTable();
+
 
 
 
