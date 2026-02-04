@@ -97,15 +97,20 @@ if (!rawPlayers.length) {
 
 const players = rawPlayers
     .map(p => {
-        const premStats = p.statistics?.find(s => s.league?.id === 39);
+        const premStats = p.statistics?.filter(s => s.league?.id === 39) || [];
+        const totalGoals = premStats.reduce((sum, s) => sum + (s.goals?.total || 0), 0);
+        const totalAssists = premStats.reduce((sum, s) => sum + (s.goals?.assists || 0), 0);
+        const totalMinutes = premStats.reduce((sum, s) => sum + (s.games?.minutes || 0), 0);
+
         return {
             name: p.player.name,
-            goals: premStats?.goals?.total || 0,
-            assists: premStats?.goals?.assists || 0,
-            minutes: premStats?.games?.minutes || 0
+            goals: totalGoals,
+            assists: totalAssists,
+            minutes: totalMinutes
         };
     })
     .filter(p => p.minutes > 0);
+
 
 const topScorers = [...players]
     .filter(p => p.goals > 0)
@@ -145,5 +150,6 @@ const topAssisters = [...players]
 }
 
 loadTable();
+
 
 
