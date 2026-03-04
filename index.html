@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Premier League Table</title>
+  <title>Football Tables</title>
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
 </head>
@@ -11,13 +11,37 @@
 
   <div class="wrap">
     <header>
-      <div class="pl-badge">PL</div>
+      <div class="pl-badge" id="leagueBadge">PL</div>
       <div class="header-text">
-        <h1>Premier League</h1>
+        <h1 id="leagueTitle">Premier League</h1>
         <p>Live Standings</p>
       </div>
       <div class="season-pill">2024 / 25</div>
     </header>
+
+    <!-- League selector -->
+    <div class="league-nav">
+      <button class="league-btn active" data-league="39" data-name="Premier League" data-badge="PL" data-flag="🏴󠁧󠁢󠁥󠁮󠁧󠁿">
+        <span class="flag">🏴󠁧󠁢󠁥󠁮󠁧󠁿</span>
+        <span class="league-btn-name">Premier League</span>
+      </button>
+      <button class="league-btn" data-league="140" data-name="La Liga" data-badge="LL" data-flag="🇪🇸">
+        <span class="flag">🇪🇸</span>
+        <span class="league-btn-name">La Liga</span>
+      </button>
+      <button class="league-btn" data-league="135" data-name="Serie A" data-badge="SA" data-flag="🇮🇹">
+        <span class="flag">🇮🇹</span>
+        <span class="league-btn-name">Serie A</span>
+      </button>
+      <button class="league-btn" data-league="78" data-name="Bundesliga" data-badge="BL" data-flag="🇩🇪">
+        <span class="flag">🇩🇪</span>
+        <span class="league-btn-name">Bundesliga</span>
+      </button>
+      <button class="league-btn" data-league="61" data-name="Ligue 1" data-badge="L1" data-flag="🇫🇷">
+        <span class="flag">🇫🇷</span>
+        <span class="league-btn-name">Ligue 1</span>
+      </button>
+    </div>
 
     <div class="legend">
       <div class="legend-item"><div class="legend-dot champ"></div> Champions</div>
@@ -58,14 +82,14 @@
     <p class="click-hint">↑ Click any row to view top scorers &amp; assisters</p>
   </div>
 
-  <!-- Modal overlay -->
+  <!-- Modal -->
   <div id="overlay" class="overlay" onclick="closeModalOnOverlay(event)">
     <div class="modal" id="modal">
       <div class="modal-header">
         <div class="modal-crest" id="modalCrest"></div>
         <div class="modal-title">
           <h2 id="modalTeam"></h2>
-          <p>2024/25 Season Stats</p>
+          <p id="modalSeason">2024/25 Season Stats</p>
         </div>
         <button class="modal-close" onclick="closeModal()">✕</button>
       </div>
