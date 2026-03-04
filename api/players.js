@@ -1,10 +1,12 @@
 export default async function handler(req, res) {
   try {
     const teamId = req.query.team;
-    const page   = req.query.page || 1;   // ← forward the page param
+    const league = req.query.league || 39;
+    const season = req.query.season || 2024;
+    const page   = req.query.page   || 1;
 
     const response = await fetch(
-      `https://v3.football.api-sports.io/players?league=39&season=2024&team=${teamId}&page=${page}`,
+      `https://v3.football.api-sports.io/players?league=${league}&season=${season}&team=${teamId}&page=${page}`,
       { headers: { "x-apisports-key": process.env.API_KEY } }
     );
     const data = await response.json();
