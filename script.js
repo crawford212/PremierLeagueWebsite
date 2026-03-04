@@ -126,12 +126,22 @@ async function openModal(team) {
       teamPlayerCache[team.team.id] = rawPlayers;
     }
 
-    // Aggregate stats — Premier League (id: 39) only
+    // ── DEBUG: log the first player's raw statistics so you can inspect
+    //    the exact shape in DevTools → Console. Remove once confirmed working.
+    if (rawPlayers.length > 0) {
+      console.log('=== RAW PLAYER SAMPLE ===', JSON.stringify(rawPlayers[0], null, 2));
+    }
+
+    // Aggregate stats — Premier League (id 39, season 2024) only.
+    // Use Number() to guard against the API returning id/season as strings.
     const agg = {};
     rawPlayers.forEach(p => {
       (p.statistics || []).forEach(s => {
-        // Only count Premier League stats (league id 39)
-        if (s.league?.id !== 39) return;
+        const leagueId = Number(s.league?.id);
+        const season   = Number(s.league?.season);
+
+        if (leagueId !== 39) return;       // not Premier League — skip
+        if (season   !== 2024) return;     // not current season — skip
 
         if (!agg[p.player.id]) {
           agg[p.player.id] = {
@@ -141,14 +151,17 @@ async function openModal(team) {
             minutes: 0
           };
         }
-        agg[p.player.id].goals   += s.goals?.total    != null ? s.goals.total   : 0;
-        agg[p.player.id].assists += s.goals?.assists   != null ? s.goals.assists : 0;
+        agg[p.player.id].goals   += s.goals?.total   != null ? Number(s.goals.total)   : 0;
+        agg[p.player.id].assists += s.goals?.assists  != null ? Number(s.goals.assists) : 0;
         agg[p.player.id].minutes += parseInt(s.games?.minutes || 0);
       });
     });
 
-    // Include players who appeared (minutes > 0), even if 0 goals/assists
+    // Include all players who appeared, even with 0 goals/assists
     const players = Object.values(agg).filter(p => p.minutes > 0);
+
+    // ── DEBUG: log what survived the filter
+    console.log(`=== FILTERED PLAYERS (${team.team.name}) ===`, players);
 
     const topScorers   = [...players].filter(p => p.goals   > 0).sort((a,b) => b.goals   - a.goals).slice(0, 5);
     const topAssisters = [...players].filter(p => p.assists > 0).sort((a,b) => b.assists - a.assists).slice(0, 5);
