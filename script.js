@@ -9,25 +9,32 @@ function getQual(pos) {
   return null;
 }
 
+
 async function loadTable() {
   try {
     const response = await fetch('/api/standings');
     const data = await response.json();
+
     if (!data.response?.length || !data.response[0]?.league?.standings) {
+      console.error('Invalid standings response', data);
       document.getElementById('tableBody').innerHTML =
         '<tr><td colspan="10" style="text-align:center;padding:2rem;color:#f87171">Failed to load standings.</td></tr>';
       return;
     }
+
     const standings = data.response[0].league.standings[0];
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = '';
+
     standings.forEach((team, index) => {
       const qual    = getQual(team.rank);
       const gd      = team.goalsDiff;
       const gdClass = gd > 0 ? 'gd-pos' : gd < 0 ? 'gd-neg' : 'gd-zero';
       const gdStr   = gd > 0 ? '+' + gd : String(gd);
+
       const tr = document.createElement('tr');
       tr.style.animationDelay = (index * 0.04) + 's';
+
       tr.innerHTML = `
         <td class="pos-cell left">
           <div class="pos-bar" style="background:${qual ? qual.color : 'transparent'}"></div>
@@ -35,7 +42,8 @@ async function loadTable() {
         </td>
         <td class="left">
           <div class="team-cell">
-            <img class="crest" src="${team.team.logo}" alt="${team.team.name}" onerror="this.style.display='none'">
+            <img class="crest" src="${team.team.logo}" alt="${team.team.name}"
+                 onerror="this.style.display='none'">
             <span class="team-name">${team.team.name}</span>
           </div>
         </td>
@@ -48,9 +56,11 @@ async function loadTable() {
         <td class="${gdClass}">${gdStr}</td>
         <td class="pts-cell">${team.points}</td>
       `;
+
       tr.addEventListener('click', () => openModal(team));
       tbody.appendChild(tr);
     });
+
   } catch (err) {
     console.error('Error loading table:', err);
     document.getElementById('tableBody').innerHTML =
@@ -58,8 +68,10 @@ async function loadTable() {
   }
 }
 
+
 async function fetchAllPlayers(teamId) {
   let all = [], page = 1, totalPages = 1;
+
   while (page <= totalPages) {
     try {
       const res  = await fetch(`/api/players?team=${teamId}&page=${page}`);
@@ -78,10 +90,12 @@ async function fetchAllPlayers(teamId) {
 
 async function openModal(team) {
   document.getElementById('modalTeam').textContent = team.team.name;
+
   const crestEl = document.getElementById('modalCrest');
   crestEl.innerHTML = team.team.logo
     ? `<img src="${team.team.logo}" alt="${team.team.name}" style="width:100%;height:100%;object-fit:contain">`
     : '⚽';
+
   document.getElementById('modalLoading').style.display = 'flex';
   document.getElementById('modalBody').style.display    = 'none';
   document.getElementById('overlay').classList.add('open');
@@ -92,33 +106,20 @@ async function openModal(team) {
       teamPlayerCache[team.team.id] = await fetchAllPlayers(team.team.id);
     }
     const rawPlayers = teamPlayerCache[team.team.id];
-
-    const seenIds = new Set();
+    
+    const seenIds       = new Set();
     const uniquePlayers = rawPlayers.filter(p => {
       if (seenIds.has(p.player.id)) return false;
       seenIds.add(p.player.id);
       return true;
     });
 
-    // ── DEBUG: log every PL 2024 stat for every player returned by this team query
-    console.log(`\n=== ALL PL 2024 STATS FOR ${team.team.name} (id:${team.team.id}) ===`);
-    uniquePlayers.forEach(p => {
-      (p.statistics || []).forEach(s => {
-        if (Number(s.league?.id) === 39 && Number(s.league?.season) === 2024) {
-          console.log(
-            `  ${p.player.name.padEnd(25)} | stat_team_id: ${String(s.team?.id).padEnd(5)} | stat_team_name: ${String(s.team?.name).padEnd(20)} | goals: ${s.goals?.total ?? 'null'} | assists: ${s.goals?.assists ?? 'null'} | mins: ${s.games?.minutes ?? 'null'}`
-          );
-        }
-      });
-    });
-    console.log(`=== END (queried team id: ${team.team.id}) ===\n`);
-
     const agg = {};
     uniquePlayers.forEach(p => {
       (p.statistics || []).forEach(s => {
-        if (Number(s.league?.id)     !== 39)           return;
-        if (Number(s.league?.season) !== 2024)         return;
-        if (Number(s.team?.id)       !== team.team.id) return;
+        if (Number(s.league?.id)     !== 39)          return; 
+        if (Number(s.team?.id)       !== team.team.id) return; 
+        if (Number(s.league?.season) !== 2024) return; 
 
         if (!agg[p.player.id]) {
           agg[p.player.id] = { name: p.player.name, goals: 0, assists: 0, minutes: 0 };
@@ -130,6 +131,7 @@ async function openModal(team) {
     });
 
     const players = Object.values(agg).filter(p => p.minutes > 0);
+
     const topScorers   = [...players].filter(p => p.goals   > 0).sort((a, b) => b.goals   - a.goals).slice(0, 5);
     const topAssisters = [...players].filter(p => p.assists > 0).sort((a, b) => b.assists - a.assists).slice(0, 5);
 
@@ -149,19 +151,24 @@ async function openModal(team) {
 function renderPlayers(containerId, players, statKey, statLabel) {
   const container = document.getElementById(containerId);
   container.innerHTML = '';
+
   if (!players.length) {
     container.innerHTML = '<p class="no-data">No data available</p>';
     return;
   }
+
   const rankClass = r => r === 1 ? 'r1' : r === 2 ? 'r2' : r === 3 ? 'r3' : '';
   const isAssist  = statKey === 'assists';
+
   players.forEach((p, i) => {
     const div = document.createElement('div');
     div.className = 'player-row';
     div.style.animationDelay = (i * 0.07) + 's';
     div.innerHTML = `
       <div class="player-rank ${rankClass(i + 1)}">${i + 1}</div>
-      <div class="player-info"><div class="player-name">${p.name}</div></div>
+      <div class="player-info">
+        <div class="player-name">${p.name}</div>
+      </div>
       <div>
         <div class="player-stat${isAssist ? ' assist-stat' : ''}">${p[statKey]}</div>
         <div class="stat-label">${statLabel}</div>
