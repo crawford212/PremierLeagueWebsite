@@ -1,5 +1,7 @@
+// ─── Cache so we don't re-fetch players for the same team ───────────────────
 const teamPlayerCache = {};
 
+// Qualification zone thresholds (positions 1-20)
 function getQual(pos) {
   if (pos === 1)              return { color: '#4ade80', label: 'Champions' };
   if (pos >= 2 && pos <= 4)  return { color: '#60a5fa', label: 'UCL' };
@@ -9,6 +11,7 @@ function getQual(pos) {
   return null;
 }
 
+// ─── Build the standings table ───────────────────────────────────────────────
 async function loadTable() {
   try {
     const response = await fetch('/api/standings');
@@ -70,6 +73,7 @@ async function loadTable() {
   }
 }
 
+// ─── Fetch all paginated players for a team ──────────────────────────────────
 async function fetchAllPlayers(teamId) {
   let all = [], page = 1, totalPages = 1;
 
@@ -89,6 +93,7 @@ async function fetchAllPlayers(teamId) {
   return all;
 }
 
+// ─── Open the modal and populate it ─────────────────────────────────────────
 async function openModal(team) {
   // Show overlay & header immediately
   document.getElementById('modalTeam').textContent = team.team.name;
@@ -121,9 +126,13 @@ async function openModal(team) {
       teamPlayerCache[team.team.id] = rawPlayers;
     }
 
+    // Aggregate stats — Premier League (id: 39) only
     const agg = {};
     rawPlayers.forEach(p => {
       (p.statistics || []).forEach(s => {
+        // Only count Premier League stats (league id 39)
+        if (s.league?.id !== 39) return;
+
         if (!agg[p.player.id]) {
           agg[p.player.id] = {
             name:    p.player.name,
@@ -132,12 +141,13 @@ async function openModal(team) {
             minutes: 0
           };
         }
-        agg[p.player.id].goals   += s.goals?.total   || 0;
-        agg[p.player.id].assists += s.goals?.assists  || 0;
+        agg[p.player.id].goals   += s.goals?.total    != null ? s.goals.total   : 0;
+        agg[p.player.id].assists += s.goals?.assists   != null ? s.goals.assists : 0;
         agg[p.player.id].minutes += parseInt(s.games?.minutes || 0);
       });
     });
 
+    // Include players who appeared (minutes > 0), even if 0 goals/assists
     const players = Object.values(agg).filter(p => p.minutes > 0);
 
     const topScorers   = [...players].filter(p => p.goals   > 0).sort((a,b) => b.goals   - a.goals).slice(0, 5);
@@ -156,6 +166,7 @@ async function openModal(team) {
   }
 }
 
+// ─── Render a list of player rows into a container ───────────────────────────
 function renderPlayers(containerId, players, statKey, statLabel) {
   const container = document.getElementById(containerId);
   container.innerHTML = '';
@@ -186,6 +197,7 @@ function renderPlayers(containerId, players, statKey, statLabel) {
   });
 }
 
+// ─── Close modal ─────────────────────────────────────────────────────────────
 function closeModal() {
   document.getElementById('overlay').classList.remove('open');
   document.body.style.overflow = '';
@@ -199,4 +211,5 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeModal();
 });
 
+// ─── Init ─────────────────────────────────────────────────────────────────────
 loadTable();
