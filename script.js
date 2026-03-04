@@ -1,168 +1,202 @@
 const teamPlayerCache = {};
 
-async function fetchAllPlayers(teamId) {
-    let allPlayers = [];
-    let page = 1;
-    let totalPages = 1;
-
-    while (page <= totalPages) {
-        try {
-            const res = await fetch(`/api/players?team=${teamId}&page=${page}`);
-            const data = await res.json();
-
-            if (!data.response) break;
-
-            allPlayers.push(...data.response);
-            totalPages = data.paging?.total || 1;
-
-            console.log(`Fetched page ${page}/${totalPages} for team ${teamId}, players so far:`, allPlayers.map(p => p.player.name));
-            page++;
-        } catch (err) {
-            console.error(`Error fetching players for team ${teamId} on page ${page}`, err);
-            break;
-        }
-    }
-
-    return allPlayers;
+function getQual(pos) {
+  if (pos === 1)              return { color: '#4ade80', label: 'Champions' };
+  if (pos >= 2 && pos <= 4)  return { color: '#60a5fa', label: 'UCL' };
+  if (pos === 5)              return { color: '#fb923c', label: 'UEL' };
+  if (pos === 6)              return { color: '#a78bfa', label: 'UECL' };
+  if (pos >= 18)             return { color: '#f87171', label: 'Relegation' };
+  return null;
 }
 
 async function loadTable() {
-    try {
-        const response = await fetch("/api/standings");
-        const data = await response.json();
+  try {
+    const response = await fetch('/api/standings');
+    const data = await response.json();
 
-        if (!data.response?.length || !data.response[0]?.league?.standings) {
-            console.error("Invalid API response", data);
-            return;
-        }
-
-        const standings = data.response[0].league.standings[0];
-        const tbody = document.querySelector("#leagueTable tbody");
-        tbody.innerHTML = "";
-
-        standings.forEach(team => {
-            const row = document.createElement("tr");
-            row.innerHTML = `
-                <td>${team.rank}</td>
-                <td class="team" data-id="${team.team.id}">${team.team.name}</td>
-                <td>${team.all.played}</td>
-                <td>${team.all.win}</td>
-                <td>${team.all.draw}</td>
-                <td>${team.all.lose}</td>
-                <td>${team.all.goals.for}</td>
-                <td>${team.all.goals.against}</td>
-                <td>${team.goalsDiff}</td>
-                <td>${team.points}</td>
-            `;
-            tbody.appendChild(row);
-        });
-
-        attachClicks();
-    } catch (err) {
-        console.error("Error loading table:", err);
+    if (!data.response?.length || !data.response[0]?.league?.standings) {
+      console.error('Invalid standings response', data);
+      document.getElementById('tableBody').innerHTML =
+        '<tr><td colspan="10" style="text-align:center;padding:2rem;color:#f87171">Failed to load standings.</td></tr>';
+      return;
     }
-}
 
-function attachClicks() {
-    const tbody = document.querySelector("#leagueTable tbody");
+    const standings = data.response[0].league.standings[0];
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
 
-    tbody.addEventListener("click", async (event) => {
-        const cell = event.target.closest(".team");
-        if (!cell) return;
+    standings.forEach((team, index) => {
+      const qual = getQual(team.rank);
+      const gd = team.goalsDiff;
+      const gdClass = gd > 0 ? 'gd-pos' : gd < 0 ? 'gd-neg' : 'gd-zero';
+      const gdStr  = gd > 0 ? '+' + gd : String(gd);
 
-        const teamId = cell.dataset.id;
-        const row = cell.parentElement;
+      const tr = document.createElement('tr');
+      tr.style.animationDelay = (index * 0.04) + 's';
+      tr.dataset.teamId   = team.team.id;
+      tr.dataset.teamName = team.team.name;
+      tr.dataset.teamLogo = team.team.logo || '';
 
-        if (row.nextElementSibling?.classList.contains("mini-table-row")) {
-            row.nextElementSibling.remove();
-            return;
-        }
+      tr.innerHTML = `
+        <td class="pos-cell left">
+          <div class="pos-bar" style="background:${qual ? qual.color : 'transparent'}"></div>
+          ${team.rank}
+        </td>
+        <td class="left">
+          <div class="team-cell">
+            <img class="crest" src="${team.team.logo}" alt="${team.team.name}"
+                 onerror="this.style.display='none'">
+            <span class="team-name">${team.team.name}</span>
+          </div>
+        </td>
+        <td>${team.all.played}</td>
+        <td class="hide-mob">${team.all.win}</td>
+        <td class="hide-mob">${team.all.draw}</td>
+        <td class="hide-mob">${team.all.lose}</td>
+        <td class="hide-mob">${team.all.goals.for}</td>
+        <td class="hide-mob">${team.all.goals.against}</td>
+        <td class="${gdClass}">${gdStr}</td>
+        <td class="pts-cell">${team.points}</td>
+      `;
 
-        const miniRow = await loadTeamStatsMini(teamId);
-        if (miniRow) row.parentNode.insertBefore(miniRow, row.nextElementSibling);
+      tr.addEventListener('click', () => openModal(team));
+      tbody.appendChild(tr);
     });
+
+  } catch (err) {
+    console.error('Error loading table:', err);
+    document.getElementById('tableBody').innerHTML =
+      '<tr><td colspan="10" style="text-align:center;padding:2rem;color:#f87171">Error loading standings.</td></tr>';
+  }
 }
 
-async function loadTeamStatsMini(teamId) {
+async function fetchAllPlayers(teamId) {
+  let all = [], page = 1, totalPages = 1;
+
+  while (page <= totalPages) {
     try {
-        let rawPlayers;
-        if (teamPlayerCache[teamId]) {
-            rawPlayers = teamPlayerCache[teamId];
-        } else {
-            rawPlayers = await fetchAllPlayers(teamId);
-            teamPlayerCache[teamId] = rawPlayers;
-        }
-
-        if (!rawPlayers.length) return null;
-
-        console.log("Raw players fetched:", rawPlayers.map(p => ({
-            name: p.player.name,
-            statistics: p.statistics
-        })));
-
-        // Aggregate stats
-        const aggregatedPlayers = {};
-        rawPlayers.forEach(p => {
-            const stats = p.statistics || [];
-            stats.forEach(s => {
-                console.log(`Player ${p.player.name} stat object:`, s);
-                if (s.league?.id === 39 && s.league?.season === 2024) {
-                    if (!aggregatedPlayers[p.player.id]) {
-                        aggregatedPlayers[p.player.id] = {
-                            name: p.player.name,
-                            goals: s.goals?.total || 0,
-                            assists: s.goals?.assists || 0,
-                            minutes: parseInt(s.games?.minutes || 0)
-                        };
-                    } else {
-                        aggregatedPlayers[p.player.id].goals += s.goals?.total || 0;
-                        aggregatedPlayers[p.player.id].assists += s.goals?.assists || 0;
-                        aggregatedPlayers[p.player.id].minutes += parseInt(s.games?.minutes || 0);
-                    }
-                }
-            });
-        });
-
-        const players = Object.values(aggregatedPlayers).filter(p => p.minutes > 0);
-        console.log(`Aggregated players for team ${teamId}:`, players);
-
-        const topScorers = [...players]
-            .filter(p => p.goals > 0)
-            .sort((a, b) => b.goals - a.goals)
-            .slice(0, 5);
-
-        const topAssisters = [...players]
-            .filter(p => p.assists > 0)
-            .sort((a, b) => b.assists - a.assists)
-            .slice(0, 5);
-
-        const miniRow = document.createElement("tr");
-        miniRow.classList.add("mini-table-row");
-
-        const miniCell = document.createElement("td");
-        miniCell.colSpan = 10;
-
-        miniCell.innerHTML = `
-<div style="display:flex; gap:20px;">
-    <table class="mini-table">
-        <tr><th colspan="2">Top 5 Scorers</th></tr>
-        ${topScorers.map(p => `<tr><td>${p.name}</td><td>${p.goals}</td></tr>`).join("")}
-    </table>
-
-    <table class="mini-table">
-        <tr><th colspan="2">Top 5 Assisters</th></tr>
-        ${topAssisters.map(p => `<tr><td>${p.name}</td><td>${p.assists}</td></tr>`).join("")}
-    </table>
-</div>
-`;
-
-        miniRow.appendChild(miniCell);
-        return miniRow;
-
+      const res  = await fetch(`/api/players?team=${teamId}&page=${page}`);
+      const data = await res.json();
+      if (!data.response) break;
+      all.push(...data.response);
+      totalPages = data.paging?.total || 1;
+      page++;
     } catch (err) {
-        console.error("Error fetching team stats for team", teamId, err);
-        return null;
+      console.error(`Error fetching players for team ${teamId}, page ${page}`, err);
+      break;
     }
+  }
+  return all;
 }
+
+async function openModal(team) {
+  // Show overlay & header immediately
+  document.getElementById('modalTeam').textContent = team.team.name;
+
+  const crestEl = document.getElementById('modalCrest');
+  if (team.team.logo) {
+    crestEl.innerHTML = `<img src="${team.team.logo}" alt="${team.team.name}" style="width:100%;height:100%;object-fit:contain">`;
+  } else {
+    crestEl.textContent = '⚽';
+  }
+
+  // Update season label
+  document.querySelector('.modal-title p').textContent =
+    (document.querySelector('.season-pill')?.textContent?.trim() || '2024/25') + ' Season Stats';
+
+  // Show loading, hide body
+  document.getElementById('modalLoading').style.display = 'flex';
+  document.getElementById('modalBody').style.display    = 'none';
+
+  document.getElementById('overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  // Fetch players (with cache)
+  try {
+    let rawPlayers;
+    if (teamPlayerCache[team.team.id]) {
+      rawPlayers = teamPlayerCache[team.team.id];
+    } else {
+      rawPlayers = await fetchAllPlayers(team.team.id);
+      teamPlayerCache[team.team.id] = rawPlayers;
+    }
+
+    const agg = {};
+    rawPlayers.forEach(p => {
+      (p.statistics || []).forEach(s => {
+        if (!agg[p.player.id]) {
+          agg[p.player.id] = {
+            name:    p.player.name,
+            goals:   0,
+            assists: 0,
+            minutes: 0
+          };
+        }
+        agg[p.player.id].goals   += s.goals?.total   || 0;
+        agg[p.player.id].assists += s.goals?.assists  || 0;
+        agg[p.player.id].minutes += parseInt(s.games?.minutes || 0);
+      });
+    });
+
+    const players = Object.values(agg).filter(p => p.minutes > 0);
+
+    const topScorers   = [...players].filter(p => p.goals   > 0).sort((a,b) => b.goals   - a.goals).slice(0, 5);
+    const topAssisters = [...players].filter(p => p.assists > 0).sort((a,b) => b.assists - a.assists).slice(0, 5);
+
+    renderPlayers('modalScorers',   topScorers,   'goals',   'goals');
+    renderPlayers('modalAssisters', topAssisters, 'assists', 'assists');
+
+    document.getElementById('modalLoading').style.display = 'none';
+    document.getElementById('modalBody').style.display    = 'grid';
+
+  } catch (err) {
+    console.error('Error loading player stats:', err);
+    document.getElementById('modalLoading').innerHTML =
+      '<span style="color:#f87171">Failed to load player data.</span>';
+  }
+}
+
+function renderPlayers(containerId, players, statKey, statLabel) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+
+  if (!players.length) {
+    container.innerHTML = '<p class="no-data">No data available</p>';
+    return;
+  }
+
+  const rankClass = r => r === 1 ? 'r1' : r === 2 ? 'r2' : r === 3 ? 'r3' : '';
+  const isAssist  = statKey === 'assists';
+
+  players.forEach((p, i) => {
+    const div = document.createElement('div');
+    div.className = 'player-row';
+    div.style.animationDelay = (i * 0.07) + 's';
+    div.innerHTML = `
+      <div class="player-rank ${rankClass(i + 1)}">${i + 1}</div>
+      <div class="player-info">
+        <div class="player-name">${p.name}</div>
+      </div>
+      <div>
+        <div class="player-stat${isAssist ? ' assist-stat' : ''}">${p[statKey]}</div>
+        <div class="stat-label">${statLabel}</div>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function closeModal() {
+  document.getElementById('overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function closeModalOnOverlay(event) {
+  if (event.target === document.getElementById('overlay')) closeModal();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
 
 loadTable();
