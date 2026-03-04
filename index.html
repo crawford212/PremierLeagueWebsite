@@ -1,48 +1,91 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Premier League Table</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Premier League Table</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
-    
-    <h1>Premier League Table</h1>
 
-    <table id="leagueTable">
-        <thead>
-            <tr>
-                <th>Pos</th>
-                <th>Team</th>
-                <th>Played</th>
-                <th>Wins</th>
-                <th>Draws</th>
-                <th>Losses</th>
-                <th>GF</th>
-                <th>GA</th>
-                <th>GD</th>
-                <th>Pts</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+  <div class="wrap">
+    <header>
+      <div class="pl-badge">PL</div>
+      <div class="header-text">
+        <h1>Premier League</h1>
+        <p>Live Standings</p>
+      </div>
+      <div class="season-pill">2024 / 25</div>
+    </header>
 
-    <div id="overlay" class="hidden"></div>
-
-    <div id="teamModal" class="hidden">
-        <h2 id="teamName"></h2>
-
-        <h3>Top 5 Scorers</h3>
-        <ul id="scorers"></ul>
-
-        <h3>Top 5 Assisters</h3>
-        <ul id="assisters"></ul>
-
-        <button id="closeBtn">Close</button>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot champ"></div> Champions</div>
+      <div class="legend-item"><div class="legend-dot ucl"></div> Champions League</div>
+      <div class="legend-item"><div class="legend-dot uel"></div> Europa League</div>
+      <div class="legend-item"><div class="legend-dot uecl"></div> Conference League</div>
+      <div class="legend-item"><div class="legend-dot rel"></div> Relegation</div>
     </div>
 
-    <script src="script.js"></script>
+    <div class="table-container">
+      <table id="leagueTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th class="left">Club</th>
+            <th>P</th>
+            <th class="hide-mob">W</th>
+            <th class="hide-mob">D</th>
+            <th class="hide-mob">L</th>
+            <th class="hide-mob">GF</th>
+            <th class="hide-mob">GA</th>
+            <th>GD</th>
+            <th>Pts</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr class="loading-row">
+            <td colspan="10">
+              <div class="loader-wrap">
+                <div class="spinner"></div>
+                <span>Loading standings…</span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="click-hint">↑ Click any row to view top scorers &amp; assisters</p>
+  </div>
 
+  <!-- Modal overlay -->
+  <div id="overlay" class="overlay" onclick="closeModalOnOverlay(event)">
+    <div class="modal" id="modal">
+      <div class="modal-header">
+        <div class="modal-crest" id="modalCrest"></div>
+        <div class="modal-title">
+          <h2 id="modalTeam"></h2>
+          <p>2024/25 Season Stats</p>
+        </div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-loading" id="modalLoading">
+        <div class="spinner"></div>
+        <span>Fetching player data…</span>
+      </div>
+      <div class="modal-body" id="modalBody" style="display:none">
+        <div class="modal-section">
+          <h3><span class="icon">⚽</span> Top Scorers</h3>
+          <div id="modalScorers"></div>
+        </div>
+        <div class="modal-section">
+          <h3><span class="icon">🎯</span> Top Assisters</h3>
+          <div id="modalAssisters"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
-
