@@ -58,9 +58,10 @@ async function loadTable() {
       const res  = await fetch(`/api/standings?league=${currentLeagueId}`);
       const data = await res.json();
 
-      if (!data.response?.length || !data.response[0]?.league?.standings) {
-        throw new Error('Invalid standings response');
-      }
+      console.log('API response:', JSON.stringify(data));
+if (!data.response?.length || !data.response[0]?.league?.standings) {
+  throw new Error('Invalid standings response');
+}
       standingsCache[currentLeagueId] = data.response[0].league.standings[0];
     }
 
@@ -237,3 +238,4 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal()
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 loadTable();
+
