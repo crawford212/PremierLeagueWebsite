@@ -128,7 +128,8 @@ async function openModal(team) {
     const agg = {};
     uniquePlayers.forEach(p => {
       (p.statistics || []).forEach(s => {
-        if (Number(s.league?.id)     !== 39)   return; // not PL
+        if (Number(s.league?.id)     !== 39)          return; // not PL
+        if (Number(s.team?.id)       !== team.team.id) return; // not this team
         if (Number(s.league?.season) !== 2024) return; // not this season
 
         if (!agg[p.player.id]) {
